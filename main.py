@@ -181,7 +181,7 @@ class ChatGPT(App):
         self.apikey_label.text = 'Grabada!'
 
 
-# key = Fernet.generate_key()
+# key = Fernet.generate_key() # tt
 key = b'Vfj3B8_4K5bqFb6soBwUF46jkinB18m8IISBGmOWHPA='
 
 if __name__ == '__main__':
