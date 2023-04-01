@@ -1,23 +1,24 @@
 # pip install kivy --pre --no-deps --index-url  https://kivy.org/downloads/simple/
 # pip install "kivy[base]" --pre --extra-index-url https://kivy.org/downloads/simple/
 
-import os
+
 import openai
 import sys
 import time
+import os
 from threading import Thread
 from cryptography.fernet import Fernet
 
 from kivy.clock import Clock
 from kivy.core.audio import SoundLoader
 from kivy.app import App
+from kivy.core.window import Window
 from kivy.properties import partial
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.popup import Popup
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.image import Image
-from kivy.uix.scrollview import ScrollView
 from kivy.uix.label import Label
 
 
@@ -53,21 +54,13 @@ def consultar(pedido):
         return f'{respuesta}\n\n'
 
 
-class ScrollableTextInput(ScrollView):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.size_hint = (1, None)
-        self.height = 200
-        self.text_input = TextInput()
-        self.add_widget(self.text_input)
-
-
 class ChatGPT(App):
     pedido = ''
     API_KEY = ''
 
     def __init__(self, **kwargs):
         super().__init__()
+        self._keyboard = None
         self.respuesta = None
         self.label = None
         self.imagen = None
@@ -80,11 +73,9 @@ class ChatGPT(App):
     def build(self):
         layout = BoxLayout(padding=10, orientation='vertical')
 
-        # self.scroll = ScrollView(scroll_type=['bars', 'content'])
-
         layout_input = BoxLayout(size_hint_y=0.1)
         self.txt_input = TextInput()
-        self.imagen = Image(source='walk.gif', size_hint_x=0.1, allow_stretch=True)
+        self.imagen = Image(source='walk.gif', size_hint_x=0.1)
         self.imagen.anim_delay = -1
         self.button = Button(text='->', size_hint_x=0.3)
         self.button.bind(on_release=self.button_clicked)
@@ -92,13 +83,13 @@ class ChatGPT(App):
         layout_input.add_widget(self.txt_input)
         layout_input.add_widget(self.imagen)
         layout_input.add_widget(self.button)
+        self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
+        self._keyboard.bind(on_key_down=self._on_keyboard_down)
 
         self.label = Label(size_hint_y=0.05)
         self.txt_response = TextInput()
         layout.add_widget(self.label)
         layout.add_widget(self.txt_response)
-        # self.scroll.add_widget(self.txt_response)
-        # layout.add_widget(self.scroll)
 
         layout_footer = BoxLayout(size_hint_y=0.1)
         btn_salir = Button(text='Salir', size_hint_y=0.1)
@@ -111,6 +102,15 @@ class ChatGPT(App):
 
         self.respuesta = ''
         return layout
+
+    def _keyboard_closed(self):
+        print('My keyboard have been closed!')
+        pass
+
+    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+        print('on_key_down')
+        if self.txt_input.focus and keycode[1] == 'enter':
+            self.button_clicked(self.button)
 
     def button_clicked(self, instance):
         if self.API_KEY == '':
@@ -147,7 +147,8 @@ class ChatGPT(App):
                 break
             self.label.text = f'Conectando/Procesando...{cont}'
 
-    def salir(self, instance):
+    @staticmethod
+    def salir():
         sys.exit()
 
     def popup(self, instance):
@@ -174,8 +175,8 @@ class ChatGPT(App):
         self.API_KEY = self.txtinput_apikey.text.strip()
         openai.api_key = self.API_KEY
 
-        fernet = Fernet(key)
-        API_KEY_enc = fernet.encrypt(self.API_KEY.encode())
+        fernets = Fernet(key)
+        API_KEY_enc = fernets.encrypt(self.API_KEY.encode())
         with open('kajd', 'w') as fk:
             fk.write(str(API_KEY_enc))
         self.apikey_label.text = 'Grabada!'
@@ -193,7 +194,7 @@ if __name__ == '__main__':
             ChatGPT.API_KEY = f.readline().strip()
             ChatGPT.API_KEY = ChatGPT.API_KEY[2:len(ChatGPT.API_KEY)-1]
             fernet = Fernet(key)
-            ChatGPT.API_KEY = fernet.decrypt(ChatGPT.API_KEY).decode()
+            ChatGPT.API_KEY = fernet.decrypt(bytes(ChatGPT.API_KEY, 'utf-8')).decode()
 
     openai.api_key = ChatGPT.API_KEY
 
